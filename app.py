@@ -20,7 +20,6 @@ app.add_middleware(
 
 # ── Download model from Google Drive at startup ───────────────────────────────
 MODEL_PATH   = "./models/xception_finetuned_best.keras"
-GDRIVE_ID    = os.environ.get("GDRIVE_MODEL_ID", "")  # set this in Render env vars
 
 def download_model():
     if os.path.exists(MODEL_PATH):
@@ -32,8 +31,9 @@ def download_model():
         filename="xception_finetuned_best.keras",
         repo_type="dataset"
     )
-    os.rename(path, MODEL_PATH)
-    print("Done.")
+    import shutil
+    shutil.copy(cached, MODEL_PATH)
+    print("Model downloaded to", MODEL_PATH)
 
 download_model()
 
