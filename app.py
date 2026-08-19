@@ -19,14 +19,15 @@ app.add_middleware(
 )
 
 # ── Download model from Google Drive at startup ───────────────────────────────
-MODEL_PATH   = "./models/xception_finetuned_best.keras"
-
+MODEL_PATH = "./models/xception_finetuned_best.keras"
+ 
 def download_model():
     if os.path.exists(MODEL_PATH):
+        print("Model already exists, skipping download.")
         return
     os.makedirs("./models", exist_ok=True)
-    print("Downloading model from Hugging Face...")
-    path = hf_hub_download(
+    print("Downloading model from Hugging Face Hub...")
+    cached = hf_hub_download(
         repo_id="dsatev/thesis-models",
         filename="xception_finetuned_best.keras",
         repo_type="dataset"
@@ -34,7 +35,7 @@ def download_model():
     import shutil
     shutil.copy(cached, MODEL_PATH)
     print("Model downloaded to", MODEL_PATH)
-
+ 
 download_model()
 
 # ── Load model ────────────────────────────────────────────────────────────────
