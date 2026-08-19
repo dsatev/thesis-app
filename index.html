@@ -1,19 +1,529 @@
-<!doctype html>
-<html>
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width" />
-		<title>My static Space</title>
-		<link rel="stylesheet" href="style.css" />
-	</head>
-	<body>
-		<div class="card">
-			<h1>Welcome to your static Space!</h1>
-			<p>You can modify this app directly by editing <i>index.html</i> in the Files and versions tab.</p>
-			<p>
-				Also don't forget to check the
-				<a href="https://huggingface.co/docs/hub/spaces" target="_blank">Spaces documentation</a>.
-			</p>
-		</div>
-	</body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepScan — AI Image Detector</title>
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────────── */
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #161921;
+    --border:    #262b36;
+    --text:      #e8eaf0;
+    --muted:     #6b7385;
+    --accent:    #5b8ef0;        /* electric blue — forensics / scanner */
+    --fake:      #f04f5b;
+    --real:      #3ecf8e;
+    --warn:      #f0a83e;
+    --radius:    12px;
+    --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
+    --font-body: 'Inter', system-ui, sans-serif;
+  }
+
+  /* ── Reset ──────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Google Fonts ───────────────────────────────────────────────── */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  /* ── Header ─────────────────────────────────────────────────────── */
+  header {
+    width: 100%;
+    padding: 28px 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .logo-text { font-weight: 600; font-size: 18px; letter-spacing: -0.02em; }
+  .logo-sub  { font-size: 12px; color: var(--muted); margin-left: auto; font-family: var(--font-mono); }
+
+  /* ── Main ───────────────────────────────────────────────────────── */
+  main {
+    width: 100%;
+    max-width: 640px;
+    padding: 60px 24px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  /* ── Hero ───────────────────────────────────────────────────────── */
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 38px);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 15px; line-height: 1.6; }
+
+  /* ── Drop zone ──────────────────────────────────────────────────── */
+  .drop-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    background: var(--surface);
+  }
+  .drop-zone:hover,
+  .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: #161921cc;
+  }
+  .drop-zone input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-icon {
+    font-size: 36px; margin-bottom: 12px;
+    display: block;
+    filter: grayscale(0.4);
+  }
+  .drop-zone p { color: var(--muted); font-size: 14px; }
+  .drop-zone strong { color: var(--text); font-weight: 500; }
+
+  /* ── Preview ────────────────────────────────────────────────────── */
+  #preview-wrap {
+    display: none;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  #preview-wrap img {
+    width: 100%; display: block;
+    max-height: 360px; object-fit: contain;
+    background: #0a0c10;
+  }
+  .preview-clear {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.7); border: none; cursor: pointer;
+    color: var(--muted); border-radius: 6px; padding: 4px 8px;
+    font-size: 12px; transition: color 0.15s;
+  }
+  .preview-clear:hover { color: var(--text); }
+
+  /* ── Analyse button ─────────────────────────────────────────────── */
+  #analyse-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    display: none;
+  }
+  #analyse-btn:hover  { opacity: 0.88; }
+  #analyse-btn:active { transform: scale(0.98); }
+  #analyse-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Loader ─────────────────────────────────────────────────────── */
+  #loader { display: none; text-align: center; padding: 20px 0; }
+  .scan-line {
+    width: 100%; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    border-radius: 2px;
+    animation: scan 1.2s ease-in-out infinite;
+  }
+  @keyframes scan {
+    0%   { transform: scaleX(0.1); opacity: 0.4; }
+    50%  { transform: scaleX(1);   opacity: 1;   }
+    100% { transform: scaleX(0.1); opacity: 0.4; }
+  }
+  #loader p { color: var(--muted); font-size: 13px; margin-top: 12px; font-family: var(--font-mono); }
+
+  /* ── Results ────────────────────────────────────────────────────── */
+  #results { display: none; flex-direction: column; gap: 16px; }
+
+  .verdict-card {
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 24px;
+  }
+  .verdict-card.fake { border-color: var(--fake); }
+  .verdict-card.real { border-color: var(--real); }
+
+  .verdict-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .verdict-main {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .verdict-tag {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .verdict-tag.fake { color: var(--fake); }
+  .verdict-tag.real { color: var(--real); }
+  .verdict-conf {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* confidence bar */
+  .conf-bar-wrap {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 14px;
+  }
+  .conf-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .conf-bar.fake { background: var(--fake); }
+  .conf-bar.real { background: var(--real); }
+
+  /* per-model breakdown */
+  .models-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .model-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .model-name {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .model-verdict {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .model-verdict.fake { color: var(--fake); }
+  .model-verdict.real { color: var(--real); }
+  .model-prob {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* prob row */
+  .prob-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .prob-row span:last-child { color: var(--muted); }
+
+  /* error */
+  .error-card {
+    background: #1e1215;
+    border: 1px solid #6b2030;
+    border-radius: var(--radius);
+    padding: 16px;
+    color: #f47d8a;
+    font-size: 14px;
+  }
+
+  /* try again */
+  #try-again {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 10px;
+    cursor: pointer;
+    width: 100%;
+    transition: color 0.15s, border-color 0.15s;
+    display: none;
+  }
+  #try-again:hover { color: var(--text); border-color: var(--text); }
+
+  /* ── Footer ─────────────────────────────────────────────────────── */
+  footer {
+    margin-top: auto;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    font-family: var(--font-mono);
+  }
+
+  @media (max-width: 480px) {
+    .models-grid { grid-template-columns: 1fr; }
+    header { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">DS</div>
+  <span class="logo-text">DeepScan</span>
+  <span class="logo-sub">v1.0 · thesis build</span>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Is this image <span>AI-generated?</span></h1>
+    <p>Upload any image and two neural networks (Xception + ResNet50) will analyse it
+       independently, then return a combined verdict.</p>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp">
+    <span class="drop-icon">🔍</span>
+    <p><strong>Drop an image here</strong> or click to browse</p>
+    <p style="margin-top:6px;font-size:12px;">JPEG · PNG · WEBP &nbsp;·&nbsp; max 10 MB</p>
+  </div>
+
+  <!-- Preview -->
+  <div id="preview-wrap">
+    <img id="preview-img" src="" alt="Selected image">
+    <button class="preview-clear" id="clear-btn">✕ clear</button>
+  </div>
+
+  <!-- Analyse -->
+  <button id="analyse-btn">Analyse image</button>
+
+  <!-- Loader -->
+  <div id="loader">
+    <div class="scan-line"></div>
+    <p>scanning image…</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <!-- Ensemble verdict -->
+    <div class="verdict-card" id="ensemble-card">
+      <div class="verdict-label">Ensemble verdict</div>
+      <div class="verdict-main">
+        <span class="verdict-tag" id="ens-tag">—</span>
+        <span class="verdict-conf" id="ens-conf"></span>
+      </div>
+      <div class="conf-bar-wrap">
+        <div class="conf-bar" id="ens-bar" style="width:0%"></div>
+      </div>
+      <div class="prob-row">
+        <span id="ens-fake-prob"></span>
+        <span id="ens-real-prob"></span>
+      </div>
+    </div>
+
+    <!-- Per-model breakdown -->
+    <div class="verdict-card">
+      <div class="verdict-label">Per-model breakdown</div>
+      <div class="models-grid" id="models-grid"></div>
+    </div>
+  </div>
+
+  <div id="error-wrap" style="display:none">
+    <div class="error-card" id="error-msg"></div>
+  </div>
+
+  <button id="try-again">↩ Analyse another image</button>
+</main>
+
+<footer>CIFAKE dataset · Xception + ResNet50 · transfer learning</footer>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  // Replace with your actual Hugging Face Space URL after deployment
+  const API_BASE = "https://YOUR_USERNAME-deepfake-detection-api.hf.space";
+
+  // ── Elements ────────────────────────────────────────────────────────────────
+  const dropZone    = document.getElementById("drop-zone");
+  const fileInput   = document.getElementById("file-input");
+  const previewWrap = document.getElementById("preview-wrap");
+  const previewImg  = document.getElementById("preview-img");
+  const clearBtn    = document.getElementById("clear-btn");
+  const analyseBtn  = document.getElementById("analyse-btn");
+  const loader      = document.getElementById("loader");
+  const results     = document.getElementById("results");
+  const errorWrap   = document.getElementById("error-wrap");
+  const errorMsg    = document.getElementById("error-msg");
+  const tryAgain    = document.getElementById("try-again");
+
+  let selectedFile = null;
+
+  // ── Drag & drop ─────────────────────────────────────────────────────────────
+  dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+  fileInput.addEventListener("change", () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+  function handleFile(file) {
+    if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
+      showError("Unsupported file type. Please upload a JPEG, PNG, or WEBP image.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showError("File too large. Maximum size is 10 MB.");
+      return;
+    }
+    selectedFile = file;
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    previewWrap.style.display = "block";
+    dropZone.style.display    = "none";
+    analyseBtn.style.display  = "block";
+    hideResults();
+  }
+
+  clearBtn.addEventListener("click", reset);
+  tryAgain.addEventListener("click", reset);
+
+  function reset() {
+    selectedFile = null;
+    fileInput.value = "";
+    previewImg.src = "";
+    previewWrap.style.display = "none";
+    dropZone.style.display    = "block";
+    analyseBtn.style.display  = "none";
+    tryAgain.style.display    = "none";
+    hideResults();
+  }
+
+  function hideResults() {
+    results.style.display    = "none";
+    errorWrap.style.display  = "none";
+    loader.style.display     = "none";
+  }
+
+  // ── Analyse ──────────────────────────────────────────────────────────────────
+  analyseBtn.addEventListener("click", async () => {
+    if (!selectedFile) return;
+
+    analyseBtn.disabled      = true;
+    loader.style.display     = "block";
+    results.style.display    = "none";
+    errorWrap.style.display  = "none";
+    tryAgain.style.display   = "none";
+
+    const form = new FormData();
+    form.append("file", selectedFile);
+
+    try {
+      const res  = await fetch(`${API_BASE}/predict`, { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Server error");
+      renderResults(data);
+    } catch (err) {
+      showError(err.message || "Could not reach the API. Is the Hugging Face Space running?");
+    } finally {
+      loader.style.display  = "none";
+      analyseBtn.disabled   = false;
+      tryAgain.style.display = "block";
+    }
+  });
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  function renderResults(data) {
+    const ens   = data.ensemble;
+    const isFake = ens.label === "FAKE";
+    const cls    = isFake ? "fake" : "real";
+
+    // Ensemble card
+    const card = document.getElementById("ensemble-card");
+    card.className = `verdict-card ${cls}`;
+
+    const tag = document.getElementById("ens-tag");
+    tag.textContent = ens.label;
+    tag.className = `verdict-tag ${cls}`;
+
+    document.getElementById("ens-conf").textContent = `${ens.confidence}% confidence`;
+    document.getElementById("ens-fake-prob").textContent = `AI-generated: ${ens.fake_prob}%`;
+    document.getElementById("ens-real-prob").textContent = `Real: ${ens.real_prob}%`;
+
+    const bar = document.getElementById("ens-bar");
+    bar.className = `conf-bar ${cls}`;
+    setTimeout(() => { bar.style.width = `${ens.confidence}%`; }, 50);
+
+    // Per-model
+    const grid = document.getElementById("models-grid");
+    grid.innerHTML = "";
+    for (const [name, m] of Object.entries(data.models)) {
+      const mc   = m.label === "FAKE" ? "fake" : "real";
+      const card = document.createElement("div");
+      card.className = "model-card";
+      card.innerHTML = `
+        <div class="model-name">${name}</div>
+        <div class="model-verdict ${mc}">${m.label}</div>
+        <div class="model-prob">${m.confidence}% confidence</div>
+        <div class="model-prob" style="margin-top:4px;font-size:11px">
+          AI: ${m.fake_prob}% &nbsp;·&nbsp; Real: ${m.real_prob}%
+        </div>`;
+      grid.appendChild(card);
+    }
+
+    results.style.display = "flex";
+  }
+
+  function showError(msg) {
+    errorMsg.textContent     = msg;
+    errorWrap.style.display  = "block";
+    tryAgain.style.display   = "block";
+    loader.style.display     = "none";
+  }
+</script>
+</body>
 </html>
+
