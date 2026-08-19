@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from PIL import Image
 import tensorflow as tf
+from huggingface_hub import hf_hub_download
 
 app = FastAPI(title="Deepfake Detection API")
 
@@ -23,16 +24,16 @@ GDRIVE_ID    = os.environ.get("GDRIVE_MODEL_ID", "")  # set this in Render env v
 
 def download_model():
     if os.path.exists(MODEL_PATH):
-        print("Model already downloaded, skipping.")
-        return
-    if not GDRIVE_ID:
-        print("ERROR: GDRIVE_MODEL_ID env var not set.")
         return
     os.makedirs("./models", exist_ok=True)
-    print(f"Downloading model from Google Drive (id={GDRIVE_ID}) ...")
-    url = f"https://drive.google.com/uc?id={GDRIVE_ID}"
-    gdown.download(url, MODEL_PATH, quiet=False)
-    print("Download complete.")
+    print("Downloading model from Hugging Face...")
+    path = hf_hub_download(
+        repo_id="dsatev/thesis-models",
+        filename="xception_finetuned_best.keras",
+        repo_type="dataset"
+    )
+    os.rename(path, MODEL_PATH)
+    print("Done.")
 
 download_model()
 
