@@ -20,7 +20,7 @@ app.add_middleware(
 
 MODELS_TO_LOAD = {
     "xception_cifake":    "xception_finetuned.onnx",
-    "xception_faces":     "xception_finetunde_v2.onnx",
+    "xception_faces":     "xception_finetuned_v2.onnx",
 }
  
 def download_model(filename):
