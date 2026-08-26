@@ -18,11 +18,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Download models from HF Hub ───────────────────────────────────────────────
 MODELS_TO_LOAD = {
     "xception_cifake":    "xception_finetuned.onnx",
     "xception_faces":     "xception_finetuned_v2.onnx",
 }
- 
+
 def download_model(filename):
     path = f"./models/{filename}"
     if os.path.exists(path):
@@ -38,10 +39,10 @@ def download_model(filename):
     shutil.copy(cached, path)
     print(f"Downloaded {filename} ({os.path.getsize(path) / 1e6:.1f} MB)")
     return path
- 
+
 # ── Load all models ───────────────────────────────────────────────────────────
 sessions = {}
- 
+
 for name, filename in MODELS_TO_LOAD.items():
     try:
         path = download_model(filename)
@@ -54,20 +55,20 @@ for name, filename in MODELS_TO_LOAD.items():
         import traceback
         print(f"ERROR loading {name}: {e}")
         traceback.print_exc()
- 
+
 print(f"Startup complete. Models loaded: {list(sessions.keys())}")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 IMG_SIZE      = (128, 128)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_BYTES     = 10 * 1024 * 1024
- 
+
 def preprocess(image_bytes: bytes) -> np.ndarray:
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     img = img.resize(IMG_SIZE)
     arr = np.array(img, dtype=np.float32) / 255.0
     return np.expand_dims(arr, axis=0)
- 
+
 def predict_one(session, arr: np.ndarray) -> dict:
     input_name = session.get_inputs()[0].name
     outputs    = session.run(None, {input_name: arr})
@@ -84,11 +85,7 @@ def predict_one(session, arr: np.ndarray) -> dict:
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/")
 def health():
-    return {
-        "status":       "ok",
-        "model_loaded": sessions is not None,
-        "models_loaded": ["xception"] if sessions else []
-    }
+    return {"status": "ok", "models_loaded": list(sessions.keys())}
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
@@ -97,17 +94,29 @@ async def predict(file: UploadFile = File(...)):
     raw = await file.read()
     if len(raw) > MAX_BYTES:
         raise HTTPException(400, "File too large. Maximum size is 10 MB.")
-    if sessions is None:
-        raise HTTPException(503, "Model not loaded. Please try again in a moment.")
+    if not sessions:
+        raise HTTPException(503, "No models loaded.")
     try:
         arr = preprocess(raw)
     except Exception as e:
         raise HTTPException(400, f"Could not read image: {e}")
 
-    result = predict_one(arr)
+    results = {}
+    for name, session in sessions.items():
+        results[name] = predict_one(session, arr)
+
+    # Ensemble: average fake probability across both models
+    avg_fake       = np.mean([r["fake_prob"] for r in results.values()])
+    ensemble_label = "FAKE" if avg_fake >= 50 else "REAL"
+    ensemble_conf  = avg_fake if ensemble_label == "FAKE" else 100 - avg_fake
 
     return JSONResponse({
         "filename": file.filename,
-        "models":   {"xception": result},
-        "ensemble": result
+        "models":   results,
+        "ensemble": {
+            "label":      ensemble_label,
+            "confidence": round(float(ensemble_conf), 2),
+            "fake_prob":  round(float(avg_fake), 2),
+            "real_prob":  round(float(100 - avg_fake), 2),
+        }
     })
