@@ -85,8 +85,8 @@ def predict_one(arr: np.ndarray) -> dict:
 def health():
     return {
         "status":       "ok",
-        "model_loaded": session is not None,
-        "models_loaded": ["xception"] if session else []
+        "model_loaded": sessions is not None,
+        "models_loaded": ["xception"] if sessions else []
     }
 
 @app.post("/predict")
@@ -96,7 +96,7 @@ async def predict(file: UploadFile = File(...)):
     raw = await file.read()
     if len(raw) > MAX_BYTES:
         raise HTTPException(400, "File too large. Maximum size is 10 MB.")
-    if session is None:
+    if sessions is None:
         raise HTTPException(503, "Model not loaded. Please try again in a moment.")
     try:
         arr = preprocess(raw)
