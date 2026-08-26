@@ -18,7 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-────────────────────────────
 MODELS_TO_LOAD = {
     "xception_cifake":    "xception_finetuned.onnx",
     "xception_faces":     "xception_finetunde_v2.onnx",
