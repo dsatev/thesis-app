@@ -61,18 +61,19 @@ print(f"Startup complete. Models loaded: {list(sessions.keys())}")
 IMG_SIZE      = (128, 128)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_BYTES     = 10 * 1024 * 1024
-
+ 
 def preprocess(image_bytes: bytes) -> np.ndarray:
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     img = img.resize(IMG_SIZE)
     arr = np.array(img, dtype=np.float32) / 255.0
-    return np.expand_dims(arr, axis=0)  # (1, 128, 128, 3)
-
-def predict_one(arr: np.ndarray) -> dict:
-    outputs = session.run(None, {input_name: arr})
-    prob    = float(outputs[0][0][0])
-    label   = "FAKE" if prob >= 0.5 else "REAL"
-    conf    = prob if label == "FAKE" else 1 - prob
+    return np.expand_dims(arr, axis=0)
+ 
+def predict_one(session, arr: np.ndarray) -> dict:
+    input_name = session.get_inputs()[0].name
+    outputs    = session.run(None, {input_name: arr})
+    prob       = float(outputs[0][0][0])
+    label      = "FAKE" if prob >= 0.5 else "REAL"
+    conf       = prob if label == "FAKE" else 1 - prob
     return {
         "label":      label,
         "confidence": round(conf * 100, 2),
