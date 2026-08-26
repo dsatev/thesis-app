@@ -18,38 +18,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Download model from HF Hub at startup ─────────────────────────────────────
-MODEL_PATH = "./models/xception_finetuned.onnx"
-
-def download_model():
-    if os.path.exists(MODEL_PATH):
-        print("Model already exists, skipping download.")
-        return
+────────────────────────────
+MODELS_TO_LOAD = {
+    "xception_cifake":    "xception_finetuned.onnx",
+    "xception_faces":     "xception_finetunde_v2.onnx",
+}
+ 
+def download_model(filename):
+    path = f"./models/{filename}"
+    if os.path.exists(path):
+        print(f"Already exists: {filename}")
+        return path
     os.makedirs("./models", exist_ok=True)
-    print("Downloading ONNX model from Hugging Face Hub...")
+    print(f"Downloading {filename} from HF Hub...")
     cached = hf_hub_download(
         repo_id="dsatev/thesis-models",
-        filename="xception_finetuned.onnx",
+        filename=filename,
         repo_type="dataset"
     )
-    shutil.copy(cached, MODEL_PATH)
-    print(f"Model downloaded ({os.path.getsize(MODEL_PATH) / 1e6:.1f} MB)")
-
-download_model()
-
-# ── Load ONNX model ───────────────────────────────────────────────────────────
-session = None
-input_name = None
-
-try:
-    print("Loading ONNX model...")
-    session    = ort.InferenceSession(MODEL_PATH, providers=["CPUExecutionProvider"])
-    input_name = session.get_inputs()[0].name
-    print(f"Model loaded. Input: {input_name} {session.get_inputs()[0].shape}")
-except Exception as e:
-    print(f"ERROR loading model: {e}")
-    import traceback
-    traceback.print_exc()
+    shutil.copy(cached, path)
+    print(f"Downloaded {filename} ({os.path.getsize(path) / 1e6:.1f} MB)")
+    return path
+ 
+# ── Load all models ───────────────────────────────────────────────────────────
+sessions = {}
+ 
+for name, filename in MODELS_TO_LOAD.items():
+    try:
+        path = download_model(filename)
+        sessions[name] = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
+        print(f"Loaded: {name}")
+    except Exception as e:
+        print(f"ERROR loading {name}: {e}")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 IMG_SIZE      = (128, 128)
