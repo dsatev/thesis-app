@@ -45,10 +45,17 @@ sessions = {}
 for name, filename in MODELS_TO_LOAD.items():
     try:
         path = download_model(filename)
+        if not os.path.exists(path):
+            print(f"ERROR: {filename} not found after download")
+            continue
         sessions[name] = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
-        print(f"Loaded: {name}")
+        print(f"Loaded: {name} ✓")
     except Exception as e:
+        import traceback
         print(f"ERROR loading {name}: {e}")
+        traceback.print_exc()
+ 
+print(f"Startup complete. Models loaded: {list(sessions.keys())}")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 IMG_SIZE      = (128, 128)
