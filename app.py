@@ -18,7 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Download models from HF Hub ───────────────────────────────────────────────
 MODELS_TO_LOAD = {
     "xception_cifake":    "xception_finetuned.onnx",
     "xception_faces":     "xception_finetuned_v2.onnx",
@@ -39,8 +38,7 @@ def download_model(filename):
     shutil.copy(cached, path)
     print(f"Downloaded {filename} ({os.path.getsize(path) / 1e6:.1f} MB)")
     return path
-
-# ── Load all models ───────────────────────────────────────────────────────────
+    
 sessions = {}
 
 for name, filename in MODELS_TO_LOAD.items():
@@ -58,7 +56,6 @@ for name, filename in MODELS_TO_LOAD.items():
 
 print(f"Startup complete. Models loaded: {list(sessions.keys())}")
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 IMG_SIZE      = (128, 128)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_BYTES     = 10 * 1024 * 1024
@@ -82,7 +79,6 @@ def predict_one(session, arr: np.ndarray) -> dict:
         "real_prob":  round((1 - prob) * 100, 2),
     }
 
-# ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/")
 def health():
     return {"status": "ok", "models_loaded": list(sessions.keys())}
@@ -105,7 +101,7 @@ async def predict(file: UploadFile = File(...)):
     for name, session in sessions.items():
         results[name] = predict_one(session, arr)
 
-    # Ensemble: average fake probability across both models
+    
     avg_fake       = np.mean([r["fake_prob"] for r in results.values()])
     ensemble_label = "FAKE" if avg_fake >= 50 else "REAL"
     ensemble_conf  = avg_fake if ensemble_label == "FAKE" else 100 - avg_fake
