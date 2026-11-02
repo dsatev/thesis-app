@@ -1,5 +1,5 @@
 ---
-title: Deepfake Detection API
+title: AI Image Detection API
 emoji: 🔍
 colorFrom: indigo
 colorTo: purple
@@ -9,7 +9,7 @@ pinned: false
 
 <!-- The block above is Hugging Face Spaces metadata. Keep it if you deploy as a Space; remove it otherwise. -->
 
-# Deepfake Detection API
+# AI Image Detection API
 
 A FastAPI backend that detects AI-generated images. It runs two fine-tuned convolutional neural networks, **Xception** and **ResNet50**, trained on the [CIFAKE](https://www.kaggle.com/datasets/birdy654/cifake-real-and-ai-generated-synthetic-images) dataset, and combines their outputs into an ensemble prediction.
 
